@@ -1,3 +1,4 @@
+import os
 import base64
 import binascii
 
@@ -60,20 +61,57 @@ def xorStrings(stringOne, stringTwo):
 
 def findlegit(hexString):
     encoded_bytes = hexToBytes(hexString)
+    current_score = 0
+    current_string = ""
     for b in range(0, 256):
-        print(b)
-        print(bytes([b])[0])
         decoded_bytes = xorAgainstByte(encoded_bytes, bytes([b])[0])
-        decoded_string = decoded_bytes.decode("utf-8")
-        print(decoded_string)
         count = 0
         counts = {}
-        for character in decoded_string:
+        for charByte in decoded_bytes:
+            character = chr(charByte)
             counts.setdefault(character, 0)
             counts[character] += 1
             count += 1
-        # scoreCounts(counts)
+        score = scoreCounts(counts, count)
+        if current_score == 0 or score < current_score:
+            current_score = score 
+            current_string = decoded_bytes.decode("utf-8", errors='replace')
+    return (current_string, current_score)
+
+def scoreCounts(counts, count):
+    score = 0.0
+    for char in frequencies:
+        letter_count = counts.get(char, 0)
+        difference = abs((letter_count / count) - frequencies[char])
+        score += difference
+    return score
+
+def findXoredString():
+    current_score = 0
+    current_string = ""
+    file = open("4.txt", "r")
+    for line in file:
+        line = line.rstrip()
+        try:
+            (string, score) = findlegit(line)
+        except:
+            print("bad input " + line)
+            continue
+        if current_score == 0 or score < current_score:
+            current_score = score 
+            current_string = string
+    return current_string
+
+def repeatingXor(file, key):
+    input_bytes = bytearray(file.read().rstrip(), "ascii")
+    key_bytes = bytearray(key, "ascii")
+    output_bytes = bytearray()
+    for i in range(0, len(input_bytes)):
+        output_bytes.append(input_bytes[i] ^ key_bytes[i % len(key_bytes)])
+    return bytesToHexString(output_bytes)
 
 print("Answer 1: " + hexToBase64("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"))
 print("Answer 2: " + xorStrings("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965"))
-findlegit("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
+print("Answer 3: " + findlegit("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")[0])
+# print("Answer 4: " + findXoredString())
+print("Answer 5: " + repeatingXor(open("5.txt", "r"), "ICE"))
