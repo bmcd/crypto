@@ -1,34 +1,7 @@
 import os
 import base64
 import binascii
-
-frequencies = {};
-frequencies['a'] = 0.08167
-frequencies['b'] = 0.01492
-frequencies['c'] = 0.02782
-frequencies['d'] = 0.04253
-frequencies['e'] = 0.12702
-frequencies['f'] = 0.02228
-frequencies['g'] = 0.02015
-frequencies['h'] = 0.06094
-frequencies['i'] = 0.06966
-frequencies['j'] = 0.00153
-frequencies['k'] = 0.00772
-frequencies['l'] = 0.04025
-frequencies['m'] = 0.02406
-frequencies['n'] = 0.06749
-frequencies['o'] = 0.07507
-frequencies['p'] = 0.01929
-frequencies['q'] = 0.00095
-frequencies['r'] = 0.05987
-frequencies['s'] = 0.06327
-frequencies['t'] = 0.09056
-frequencies['u'] = 0.02758
-frequencies['v'] = 0.00978
-frequencies['w'] = 0.02360
-frequencies['x'] = 0.00150
-frequencies['y'] = 0.01974
-frequencies['z'] = 0.00074
+import frequency
 
 def hexToBytes(hexString):
     return bytes.fromhex(hexString)
@@ -80,9 +53,9 @@ def findlegit(hexString):
 
 def scoreCounts(counts, count):
     score = 0.0
-    for char in frequencies:
+    for char in frequency.dict:
         letter_count = counts.get(char, 0)
-        difference = abs((letter_count / count) - frequencies[char])
+        difference = abs((letter_count / count) - frequency.dict[char])
         score += difference
     return score
 
@@ -103,8 +76,8 @@ def findXoredString():
     return current_string
 
 def repeatingXor(file, key):
-    input_bytes = bytearray(file.read().rstrip(), "ascii")
-    key_bytes = bytearray(key, "ascii")
+    input_bytes = bytearray(file.read().rstrip(), "utf-8")
+    key_bytes = bytearray(key, "utf-8")
     output_bytes = bytearray()
     for i in range(0, len(input_bytes)):
         output_bytes.append(input_bytes[i] ^ key_bytes[i % len(key_bytes)])
@@ -115,3 +88,18 @@ print("Answer 2: " + xorStrings("1c0111001f010100061a024b53535009181c", "6869742
 print("Answer 3: " + findlegit("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")[0])
 # print("Answer 4: " + findXoredString())
 print("Answer 5: " + repeatingXor(open("5.txt", "r"), "ICE"))
+
+
+test1 = "this is a test"
+test2 = "wokka wokka!!!"
+
+def hamming(stringone, stringtwo):
+    distance = 0
+    bytesone = bytes(stringone, "utf-8")
+    bytestwo = bytes(stringtwo, "utf-8")
+    for i in range(0, len(bytesone)):
+        if bytesone[i] != bytestwo[i]:
+            distance += 1
+    print(distance)
+
+hamming(test1, test2)
