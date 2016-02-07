@@ -12,6 +12,9 @@ def bytesToHexString(input_bytes):
 def bytesToBase64String(raw_bytes):
     return base64.b64encode(raw_bytes).decode("ascii")
 
+def base64ToBytes(base64_string):
+    return base64.b64decode(base64_string)
+
 def hexToBase64(hexString):
     decoded_bytes = hexToBytes(hexString)
     return bytesToBase64String(decoded_bytes)
@@ -34,28 +37,38 @@ def xorStrings(stringOne, stringTwo):
 
 def findlegit(hexString):
     encoded_bytes = hexToBytes(hexString)
+    return findBestByte(encoded_bytes)
+
+def findBestByte(encoded_bytes):
     current_score = 0
-    current_string = ""
+    current_byte = None
+    current_bytes = None
     for b in range(0, 256):
-        decoded_bytes = xorAgainstByte(encoded_bytes, bytes([b])[0])
+        test_byte = bytes([b])[0]
+        decoded_bytes = xorAgainstByte(encoded_bytes, test_byte)
         count = 0
         counts = {}
         for charByte in decoded_bytes:
-            character = chr(charByte)
-            counts.setdefault(character, 0)
-            counts[character] += 1
+            char = chr(charByte)
+            counts.setdefault(char, 0)
+            counts[char] += 1
             count += 1
         score = scoreCounts(counts, count)
         if current_score == 0 or score < current_score:
             current_score = score 
-            current_string = decoded_bytes.decode("utf-8", errors='replace')
-    return (current_string, current_score)
+            current_byte = test_byte
+            current_bytes = decoded_bytes
+    if current_byte == ord('x'):
+        print("HERE")
+        print(current_bytes)
+        print(xorAgainstByte(encoded_bytes, bytes([101])[0]))
+    return (current_bytes, current_score, current_byte)
 
 def scoreCounts(counts, count):
     score = 0.0
     for char in frequency.dict:
         letter_count = counts.get(char, 0)
-        difference = abs((letter_count / count) - frequency.dict[char])
+        difference = abs((letter_count / count) - frequency.dict.get(char, 0.0))
         score += difference
     return score
 
@@ -66,40 +79,104 @@ def findXoredString():
     for line in file:
         line = line.rstrip()
         try:
-            (string, score) = findlegit(line)
+            (current_bytes, score, b) = findlegit(line)
         except:
             print("bad input " + line)
             continue
         if current_score == 0 or score < current_score:
             current_score = score 
-            current_string = string
+            current_string = current_bytes.decode("utf-8", errors='replace')
     return current_string
 
-def repeatingXor(file, key):
+def repeating(file, key):
     input_bytes = bytearray(file.read().rstrip(), "utf-8")
     key_bytes = bytearray(key, "utf-8")
+    return bytesToHexString(repeatingXor(input_bytes, key_bytes))
+
+def repeatingXor(input_bytes, key_bytes):
     output_bytes = bytearray()
     for i in range(0, len(input_bytes)):
         output_bytes.append(input_bytes[i] ^ key_bytes[i % len(key_bytes)])
-    return bytesToHexString(output_bytes)
+    return output_bytes
 
 print("Answer 1: " + hexToBase64("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"))
 print("Answer 2: " + xorStrings("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965"))
-print("Answer 3: " + findlegit("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")[0])
+print("Answer 3: " + findlegit("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")[0].decode("utf-8", errors='replace'))
 # print("Answer 4: " + findXoredString())
-print("Answer 5: " + repeatingXor(open("5.txt", "r"), "ICE"))
+print("Answer 5: " + repeating(open("5.txt", "r"), "ICE"))
 
 
 test1 = "this is a test"
 test2 = "wokka wokka!!!"
 
-def hamming(stringone, stringtwo):
-    distance = 0
+def distanceStrings(stringone, stringtwo):
     bytesone = bytes(stringone, "utf-8")
     bytestwo = bytes(stringtwo, "utf-8")
-    for i in range(0, len(bytesone)):
-        if bytesone[i] != bytestwo[i]:
-            distance += 1
-    print(distance)
+    return distance(bytesone, bytestwo)
 
-hamming(test1, test2)
+def distance(bytesone, bytestwo):
+    distance = 0
+    for i in range(0, len(bytesone)):
+        xored_byte = bytesone[i] ^ bytestwo[i]
+        distance += countsetbits(xored_byte)
+    return distance
+
+def countsetbits(b):
+    return bin(b).count("1")
+
+class Distance(object):
+    def __init__(self, keysize, distance):
+        self.keysize = keysize
+        self.distance = distance
+
+    def __repr__(self):
+        return "{}: {}".format(self.keysize, self.distance)
+
+    def __lt__(self, other):
+        return self.distance < other.distance
+
+
+def breakxor(file):
+    raw = base64ToBytes(file.read())
+    distances = getProbableKeySizes(raw)
+    for dist in distances:
+        print(dist)
+        keysize = dist.keysize
+
+        blocks = [[] for _ in range(keysize)]
+        for i in range(0, len(raw)):
+            pos = i % keysize
+            blocks[pos].append(raw[i])
+
+        key = bytearray()
+        for block in blocks:
+            (string, score, b) = findBestByte(block)
+            print(string)
+            key.append(b)
+        
+        print(repeatingXor(raw, key).decode("utf-8", errors="replace"))
+        print(key)
+
+
+
+
+
+def getProbableKeySizes(raw):
+    distances = []
+    for keysize in range(2, 40):
+        iterations = 4
+        total = 0
+        for x in range(iterations):
+            start = x * keysize
+            mid = (x + 1) * keysize
+            end = (x + 2) * keysize
+            b1 = raw[start:mid]
+            b2 = raw[mid:end]
+            total += distance(b1, b2)
+
+        normalized_diff = total / iterations / keysize
+        #print(normalized_diff)
+        distances.append(Distance(keysize, normalized_diff))
+    return sorted(distances)[0:3]
+
+breakxor(open("6.txt", "r"))
