@@ -174,14 +174,21 @@ def getProbableKeySizes(raw):
         distances.append(Distance(keysize, normalized_diff))
     return sorted(distances)[0:3]
 
-breakxor(open("6.txt", "r"))
+#breakxor(open("6.txt", "r"))
 
-def decryptAes():
+def challenge7():
     input = base64ToBytes(open("7.txt", "r").read())
-    aes = AES.new("YELLOW SUBMARINE", AES.MODE_ECB)
-    print(aes.decrypt(input).decode("utf-8"))
+    print(decryptCbc(input, "YELLOW SUBMARINE").decode("utf-8"))
 
-decryptAes()
+def decryptEcb(input, key):
+    aes = AES.new(key, AES.MODE_ECB)
+    return aes.decrypt(input)
+
+def encryptEcb(input, key):
+    aes = AES.new(key, AES.MODE_ECB)
+    return aes.encrypt(input)
+
+#challenge7()
 
 def findAes():
     file = open("8.txt", "r")
@@ -201,4 +208,57 @@ def findAes():
 
 
 
-print(findAes())
+#print(findAes())
+
+def chunks(l, n):
+    return [l[i:i+n] for i in range(0, len(l), n)]
+
+def padded(block, size):
+    paddedblock = bytearray()
+    for i in range(size):
+        if i < len(block):
+            paddedblock.append(block[i])
+        else:
+            paddedblock.append(4)
+    return bytes(paddedblock)
+
+def strippadding(b):
+    while b[-1] == 4:
+        b.pop()
+    return b
+
+
+def encryptCbc(input, key, iv):
+    blocksize = 16
+    last = iv
+    output = bytearray()
+    blocks = chunks(input, blocksize)
+    for block in blocks:
+        if len(block) < blocksize:
+            block = padded(block, blocksize)
+        combined = xorBytes(last, block)
+        encrypted = encryptEcb(combined, key)
+        output.extend(encrypted)
+        last = encrypted
+    return output
+
+def decryptCbc(input, key, iv):
+    blocksize = 16
+    last = iv
+    output = bytearray()
+    blocks = chunks(input, blocksize)
+    for block in blocks:
+        decrypted = decryptEcb(bytes(block), key)
+        combined = xorBytes(last, decrypted)
+        output.extend(combined)
+        last = block
+    return strippadding(output)
+
+#print(decryptCbc(encryptCbc(bytes("this is a test!!1234567890123456xxx", "utf-8"), bytes("YELLOW SUBMARINE", "utf-8"), bytes("0000000000000000", "utf-8")), bytes("YELLOW SUBMARINE", "utf-8"), bytes("0000000000000000", "utf-8")))
+
+def challenge10():
+    file = open('10.txt', 'r')
+    input = base64ToBytes(file.read().rstrip())
+    return decryptCbc(input, bytes("YELLOW SUBMARINE", "ascii"), b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+
+print(challenge10().decode('utf-8'))
