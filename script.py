@@ -182,3 +182,23 @@ def decryptAes():
     print(aes.decrypt(input).decode("utf-8"))
 
 decryptAes()
+
+def findAes():
+    file = open("8.txt", "r")
+    for line in file:
+        line = line.rstrip()
+        raw = hexToBytes(line)
+        blocksize = 16
+        tests = {}
+        for i in range(0, len(raw) // blocksize):
+            subblock = raw[i * blocksize:(i + 1) * blocksize]
+            string = bytesToHexString(subblock)
+            if string in tests:
+                return line
+            tests[string] = True
+            
+    return "No repeating blocks in any ciphertexts"
+
+
+
+print(findAes())
