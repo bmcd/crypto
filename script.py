@@ -2,6 +2,7 @@ import os
 import base64
 import binascii
 import frequency
+from Crypto.Cipher import AES
 
 def hexToBytes(hexString):
     return bytes.fromhex(hexString)
@@ -58,10 +59,6 @@ def findBestByte(encoded_bytes):
             current_score = score 
             current_byte = test_byte
             current_bytes = decoded_bytes
-    if current_byte == ord('x'):
-        print("HERE")
-        print(current_bytes)
-        print(xorAgainstByte(encoded_bytes, bytes([101])[0]))
     return (current_bytes, current_score, current_byte)
 
 def scoreCounts(counts, count):
@@ -140,7 +137,6 @@ def breakxor(file):
     raw = base64ToBytes(file.read())
     distances = getProbableKeySizes(raw)
     for dist in distances:
-        print(dist)
         keysize = dist.keysize
 
         blocks = [[] for _ in range(keysize)]
@@ -151,7 +147,6 @@ def breakxor(file):
         key = bytearray()
         for block in blocks:
             (string, score, b) = findBestByte(block)
-            print(string)
             key.append(b)
         
         print(repeatingXor(raw, key).decode("utf-8", errors="replace"))
@@ -180,3 +175,10 @@ def getProbableKeySizes(raw):
     return sorted(distances)[0:3]
 
 breakxor(open("6.txt", "r"))
+
+def decryptAes():
+    input = base64ToBytes(open("7.txt", "r").read())
+    aes = AES.new("YELLOW SUBMARINE", AES.MODE_ECB)
+    print(aes.decrypt(input).decode("utf-8"))
+
+decryptAes()
