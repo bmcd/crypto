@@ -1,4 +1,5 @@
 from Crypto.Cipher import AES
+import random
 
 import conv
 import xortools
@@ -15,21 +16,25 @@ def find_aes(file):
     for line in file:
         line = line.rstrip()
         raw = conv.hex_to_bytes(line)
-        blocksize = 16
-        tests = {}
-        for i in range(0, len(raw) // blocksize):
-            subblock = raw[i * blocksize:(i + 1) * blocksize]
-            string = conv.bytes_to_hex(subblock)
-            if string in tests:
-                return line
-            tests[string] = True
-            
-    return "No repeating blocks in any ciphertexts"
+        if detect_repeat(raw):
+            return line
+
+def detect_repeat(raw):
+    blocksize = 16
+    tests = {}
+    for i in range(0, len(raw) // blocksize):
+        subblock = raw[i * blocksize:(i + 1) * blocksize]
+        string = conv.bytes_to_hex(subblock)
+        if string in tests:
+            return True
+        tests[string] = True
+
+    return False
 
 def chunks(l, n):
     return [l[i:i+n] for i in range(0, len(l), n)]
 
-def padded(block, size):
+def padded(block, size=16):
     paddedblock = bytearray()
     for i in range(size):
         if i < len(block):
@@ -43,6 +48,14 @@ def strippadding(b):
         b.pop()
     return b
 
+def random_key(length):
+    output = bytearray()
+
+    for i in range(0, length):
+        # TODO obviously this isn't secure, i'm sure that comes up later
+        output.append(random.randint(0, 255))
+
+    return bytes(output)
 
 def encrypt_cbc(input, key, iv):
     blocksize = 16
@@ -52,7 +65,7 @@ def encrypt_cbc(input, key, iv):
     for block in blocks:
         if len(block) < blocksize:
             block = padded(block, blocksize)
-        combined = xor_bytes(last, block)
+        combined = xortools.xor_bytes(last, block)
         encrypted = encrypt_ecb(combined, key)
         output.extend(encrypted)
         last = encrypted
@@ -70,3 +83,25 @@ def decrypt_cbc(input, key, iv):
         last = block
     return bytes(strippadding(output))
 
+def encryption_oracle(input):
+    key = random_key(16)
+    input_fixed = add_bytes_to_input(input)
+    
+    if(random.random() >= 0.5):
+        return encrypt_ecb(input, key), "ECB"
+    else:
+        return encrypt_cbc(input, key, random_key(16)), "CBC"
+
+def add_bytes_to_input(input):
+    output = bytearray()
+    bytes_before = random.randint(5, 10)
+    bytes_after = random.randint(5, 10)
+    output.extend(random_key(bytes_before))
+    output.extend(input)
+    output.extend(random_key(bytes_after))
+    return output
+
+def detect_mode(encrypted):
+    return "ECB" if detect_repeat(encrypted) else "CBC"
+
+    

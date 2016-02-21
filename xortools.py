@@ -21,28 +21,12 @@ def solve_xor_block(encoded_bytes):
     for b in range(0, 256):
         test_byte = bytes([b])[0]
         decoded_bytes = xor_against_byte(encoded_bytes, test_byte)
-        count = 0
-        counts = {}
-        for char_byte in decoded_bytes:
-            char = chr(char_byte)
-            counts.setdefault(char, 0)
-            counts[char] += 1
-            count += 1
-        score = score_counts(counts, count)
+        score = frequency.scoreof(decoded_bytes)
         if current_score == 0 or score < current_score:
             current_score = score 
             current_byte = test_byte
             current_bytes = decoded_bytes
     return (current_byte, current_bytes, current_score)
-
-# TODO put this in frequency.py
-def score_counts(counts, count):
-    score = 0.0
-    for char in frequency.dict:
-        letter_count = counts.get(char, 0)
-        difference = abs((letter_count / count) - frequency.dict.get(char, 0.0))
-        score += difference
-    return score
 
 def find_xored_bytes(file):
     current_score = 0
@@ -75,6 +59,8 @@ def _countsetbits(b):
 
 def breakxor(raw):
     distances = get_probable_key_sizes(raw)
+    best_decrypted = None
+    best_score = None
     for dist in distances:
         keysize = dist.keysize
 
@@ -89,24 +75,33 @@ def breakxor(raw):
             key.append(b)
         
         decrypted = xor_repeating(raw, key)
-        return (key, decrypted)
+        score = frequency.scoreof(decrypted)
+        if( best_score is None or score < best_score):
+            best_decrypted = (key, decrypted)
+            best_score = score
+
+    return best_decrypted
+    
 
 def get_probable_key_sizes(raw):
     distances = []
     for keysize in range(2, 40):
-        # TODO why so many iterations necessary?
-        iterations = 16
+        iterations = 4
+        #print(normalized_diff)
+        normalized_diff = get_normalized_distance(raw, keysize, iterations)
+        distances.append(Distance(keysize, normalized_diff))
+    return sorted(distances)[0:3]
+
+def get_normalized_distance(raw, blocksize=16, iterations=4):
+        total_blocks = len(raw) // blocksize
+        iterations = total_blocks if total_blocks < iterations else iterations
         total = 0
         for x in range(iterations):
-            start = x * keysize
-            mid = (x + 1) * keysize
-            end = (x + 2) * keysize
+            start = x * blocksize
+            mid = (x + 1) * blocksize
+            end = (x + 2) * blocksize
             b1 = raw[start:mid]
             b2 = raw[mid:end]
             total += distance(b1, b2)
 
-        normalized_diff = total / iterations / keysize
-        #print(normalized_diff)
-        distances.append(Distance(keysize, normalized_diff))
-    return sorted(distances)[0:1]
-
+        return total / iterations / blocksize

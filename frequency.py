@@ -26,3 +26,18 @@ dict['x'] = 0.00150
 dict['y'] = 0.01974
 dict['z'] = 0.00074
 
+def scoreof(decoded_bytes):
+    count = 0
+    counts = {}
+    for char_byte in decoded_bytes:
+        char = chr(char_byte)
+        counts.setdefault(char, 0)
+        counts[char] += 1
+        count += 1
+    score = 0.0
+    for char in dict:
+        letter_count = counts.get(char, 0)
+        difference = abs((letter_count / count) - dict.get(char, 0.0))
+        score += difference
+    return score
+

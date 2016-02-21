@@ -41,9 +41,10 @@ class Challenges(unittest.TestCase):
 
     def test_challenge_4(self):
         """ Challenge 4: Find XORed string in file (Slow, uncomment to run) """
-#
+
 #        input_file = open('files/4.txt', 'r')
 #        encrypted, decrypted = xortools.find_xored_bytes(input_file)
+#        input_file.close()
 #        self.assertEqual(conv.bytes_to_hex(encrypted), '7b5a4215415d544115415d5015455447414c155c46155f4058455c5b523f')
 
     def test_challenge_5(self):
@@ -111,6 +112,14 @@ class Challenges(unittest.TestCase):
         decrypted = aestools.decrypt_cbc(input, bytes("YELLOW SUBMARINE", "ascii"), b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
 
         self.assertEqual(decrypted, expected_bytes)
+
+    def test_challenge_11(self):
+        """ Challenge 11: Detect ECB or CBC """
+        
+        # took me a while to realize that I could know the input bytes :)
+        for x in range(16):
+            (test, mode) = aestools.encryption_oracle(bytes(128))
+            self.assertEqual(aestools.detect_mode(test), mode)
 
 if __name__ == '__main__':
     unittest.main()
