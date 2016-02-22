@@ -10,7 +10,7 @@ def decrypt_ecb(input, key):
 
 def encrypt_ecb(input, key):
     aes = AES.new(key, AES.MODE_ECB)
-    return aes.encrypt(input)
+    return aes.encrypt(padded(input))
 
 def find_aes(file):
     for line in file:
@@ -35,12 +35,14 @@ def chunks(l, n):
     return [l[i:i+n] for i in range(0, len(l), n)]
 
 def padded(block, size=16):
-    paddedblock = bytearray()
-    for i in range(size):
-        if i < len(block):
-            paddedblock.append(block[i])
-        else:
-            paddedblock.append(4)
+    remainder_bytes = len(block) % size
+    if(remainder_bytes == 0):
+        return block
+
+    paddedblock = bytearray(block)
+    for i in range(size - remainder_bytes):
+        paddedblock.append(4)
+
     return bytes(paddedblock)
 
 def strippadding(b):
@@ -88,9 +90,9 @@ def encryption_oracle(input):
     input_fixed = add_bytes_to_input(input)
     
     if(random.random() >= 0.5):
-        return encrypt_ecb(input, key), "ECB"
+        return encrypt_ecb(input_fixed, key), "ECB"
     else:
-        return encrypt_cbc(input, key, random_key(16)), "CBC"
+        return encrypt_cbc(input_fixed, key, random_key(16)), "CBC"
 
 def add_bytes_to_input(input):
     output = bytearray()
@@ -99,9 +101,20 @@ def add_bytes_to_input(input):
     output.extend(random_key(bytes_before))
     output.extend(input)
     output.extend(random_key(bytes_after))
-    return output
+    return bytes(output)
 
 def detect_mode(encrypted):
     return "ECB" if detect_repeat(encrypted) else "CBC"
 
-    
+BLACK_BOX_KEY = random_key(16)
+TEXT = """Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
+aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
+dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
+YnkK"""
+def black_box(input):
+    combined = bytearray()
+    combined.extend(input)
+    combined.extend(conv.base_64_to_bytes(TEXT))
+    # input_fixed = add_bytes_to_input(input)
+    return encrypt_ecb(bytes(combined), BLACK_BOX_KEY)
+
