@@ -124,46 +124,11 @@ class Challenges(unittest.TestCase):
     def test_challenge_12(self):
         """ Challenge 12: Decrypt ECB 1 byte at a time """
 
-        test = bytearray()
-        blocksize = None
-        last_length = None
-        unknown_length = None
-        while(blocksize is None):
-            test.append(65)
-            encrypted = aestools.black_box(bytes(test))
-            new_length = len(encrypted)
-            if(last_length is not None and new_length > last_length):
-                blocksize = new_length - last_length
-                break
-            last_length = new_length
-
-        print("Block size is: " + str(blocksize))
-        mode = aestools.detect_mode(aestools.black_box(bytes(128)))
-        
-        if(mode != "ECB"):
-            raise Exception("Black box not using ECB encryption")
-        print("Black box using ECB")
-
-        one_short = bytearray(bytes(last_length - 1))
-        for i in range(0, last_length):
-            dictionary = {}
-            for b in range(256):
-                one_short.append(b)
-                output = aestools.black_box(bytes(one_short))
-                test_block = output[last_length-blocksize : last_length]
-                dictionary[test_block] = b
-                one_short.pop()
-
-            output = aestools.black_box(bytes(one_short[0:last_length-i]))
-            test_block = output[last_length-blocksize : last_length]
-            found_byte = dictionary[test_block]
-            one_short.pop(0)
-            one_short.append(found_byte)
-
-        result = aestools.strippadding(one_short)
+        result = aestools.break_ECB_1_byte(aestools.black_box)
         self.assertEqual(result, conv.base_64_to_bytes(aestools.TEXT))
 
-
+    def test_challenge_13(self):
+        """ Challenge 13: ECB cut and paste """
 
 if __name__ == '__main__':
     unittest.main()

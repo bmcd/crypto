@@ -1,4 +1,6 @@
-
+import aestools
+from collections import OrderedDict
+USERS = {}
 
 def parse(querystring):
     output = {}
@@ -15,21 +17,26 @@ def encode(obj):
         output += '='
         output += value
         output += '&'
-    return output[0:-2]
+    # chop off last &
+    return output[0:-1]
+
+def profile(email):
+    email = email.replace('&', "%26").replace('=', '%3D')
+    return encode(create_or_get_user(email))
 
 def profile_for(email):
-    email = email.replace('&', "%26").replace('=', '%3D')
-    return encode(User(email))
+    return aestools.encrypt_ecb(bytes(profile(email), 'UTF-8'), KEY)
+
+def parse_encrypted(bytes):
+    return aestools.decrypt_ecb(bytes, KEY)
+
+def create_or_get_user(email, role='user'):
+    if email not in USERS:
+        USERS[email] = User(email, role)
+
+    return USERS[email]
 
 KEY = aestools.random_key(16)
-
-def encrypted_profile(email):
-    user = profile_for(email)
-    return aestools.encrypt_ecb(user, KEY)
-
-def decrypt_profile(encrypted):
-    decrypted = aestools.decrypt_ecb(encrypted, KEY)
-    return parse(decrypted)
 
 class User():
     nextid = 0
@@ -44,4 +51,8 @@ class User():
         self.id = self.getNextId()
 
     def items(self):
-        return { 'email': self.email, 'role': self.role, 'id': str(self.id) }.items()
+        ordereddict = OrderedDict()
+        ordereddict['email'] = self.email
+        ordereddict['id'] = str(self.id)
+        ordereddict['role'] = self.role
+        return ordereddict.items()

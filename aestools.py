@@ -6,7 +6,7 @@ import xortools
 
 def decrypt_ecb(input, key):
     aes = AES.new(key, AES.MODE_ECB)
-    return aes.decrypt(input)
+    return bytes(strippadding(bytearray(aes.decrypt(input))))
 
 def encrypt_ecb(input, key):
     aes = AES.new(key, AES.MODE_ECB)
@@ -117,4 +117,44 @@ def black_box(input):
     combined.extend(conv.base_64_to_bytes(TEXT))
     # input_fixed = add_bytes_to_input(input)
     return encrypt_ecb(bytes(combined), BLACK_BOX_KEY)
+
+def get_block_size_and_length(blackbox):
+    test = bytearray()
+    blocksize = None
+    last_length = None
+    while(blocksize is None):
+        test.append(65)
+        encrypted = blackbox(bytes(test))
+        new_length = len(encrypted)
+        if(last_length is not None and new_length > last_length):
+            blocksize = new_length - last_length
+            break
+        last_length = new_length
+    return (blocksize, last_length)
+
+def break_ECB(blocksize, length, blackbox):
+    one_short = bytearray(bytes(length - 1))
+    for i in range(0, length):
+        dictionary = {}
+        for b in range(256):
+            one_short.append(b)
+            output = blackbox(bytes(one_short))
+            test_block = output[length-blocksize : length]
+            dictionary[test_block] = b
+            one_short.pop()
+
+        output = blackbox(bytes(one_short[0:length-i]))
+        test_block = output[length-blocksize : length]
+        found_byte = dictionary[test_block]
+        one_short.pop(0)
+        one_short.append(found_byte)
+
+    return strippadding(one_short)
+
+def break_ECB_1_byte(function):
+    blocksize, length = get_block_size_and_length(function)
+    mode = detect_mode(function(bytes(128)))
+    if(mode != "ECB"):
+        raise Exception("Black box not using ECB encryption")
+    return break_ECB(blocksize, length, function)
 
