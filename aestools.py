@@ -151,6 +151,47 @@ def break_ECB(blocksize, length, blackbox):
 
     return strippadding(one_short)
 
+def break_ECB_rest(blocksize, length, blackbox):
+    prefix = 'email='
+    prefix_len = len(prefix)
+    desired_email = 'gimmeadmin+@example.com'
+    at_index = desired_email.index('@')
+
+    # create enough bytes to get to the next block
+    prefix_padding = bytearray()
+    for i in range(prefix_len, blocksize):
+        prefix_padding.append(4)
+
+    # create an entire block with just admin and padding
+    role_block = bytearray(b'admin')
+    while(len(role_block) < blocksize):
+        role_block.append(4)
+
+    # encrypt and cut that admin block out for later use
+    cut_encrypted = blackbox(prefix_padding + role_block)
+    cut_block = cut_encrypted[blocksize : blocksize*2]
+
+    # calculate the number of bytes needed to make it so 'user' is in its own final block
+    length_minus_user = length - len('user')
+    short_bytes = blocksize - (length_minus_user % blocksize)
+    # don't forget to account for the 'email=' start and the desired email length
+    short_bytes -= prefix_len + len(desired_email)
+    # we can't take away bytes, so increment by the blocksize
+    while(short_bytes < 0):
+        short_bytes += blocksize
+
+    # fill in the extra part of the email with padding to put the last block into position
+    for i in range(short_bytes):
+        desired_email = desired_email[0 : at_index] + 'a' + desired_email[at_index : len(desired_email)]
+    email = bytearray(bytes(desired_email, 'ascii'))
+
+    # get the actual encrypted cookie
+    real_encrypted = blackbox(email)
+    # pull off the last block which should be 'user0x040x04...' and replace with our admin block
+    pasted_encrypted = real_encrypted[0 : len(real_encrypted)-blocksize] + cut_block
+
+    return pasted_encrypted
+
 def break_ECB_1_byte(function):
     blocksize, length = get_block_size_and_length(function)
     mode = detect_mode(function(bytes(128)))
@@ -158,3 +199,10 @@ def break_ECB_1_byte(function):
         raise Exception("Black box not using ECB encryption")
     return break_ECB(blocksize, length, function)
 
+def create_admin_profile(function):
+    stringified_function = lambda the_bytes: function(str(the_bytes, 'UTF-8'))
+    blocksize, length = get_block_size_and_length(stringified_function)
+    mode = detect_mode(stringified_function(bytes(128)))
+    if(mode != "ECB"):
+        raise Exception("Black box not using ECB encryption")
+    return break_ECB_rest(blocksize, length, stringified_function)

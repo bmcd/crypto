@@ -3,7 +3,7 @@ from collections import OrderedDict
 USERS = {}
 
 def parse(querystring):
-    output = {}
+    output = OrderedDict()
     pairs = querystring.split('&')
     for pair in pairs:
         key, value = pair.split('=', 1)
@@ -20,12 +20,20 @@ def encode(obj):
     # chop off last &
     return output[0:-1]
 
-def profile(email):
-    email = email.replace('&', "%26").replace('=', '%3D')
-    return encode(create_or_get_user(email))
+def is_admin(cookie):
+    decrypted = parse_encrypted(cookie)
+    return decrypted.endswith(b'role=admin')
 
-def profile_for(email):
-    return aestools.encrypt_ecb(bytes(profile(email), 'UTF-8'), KEY)
+def remove_symbols(email):
+    return email.replace('&', "%26").replace('=', '%3D')
+
+def profile(email, role):
+    email = remove_symbols(email)
+    return encode(create_or_get_user(email, role))
+
+def profile_for(email, role='user'):
+    encoded_profile = profile(email, role)
+    return aestools.encrypt_ecb(bytes(encoded_profile, 'UTF-8'), KEY)
 
 def parse_encrypted(bytes):
     return aestools.decrypt_ecb(bytes, KEY)

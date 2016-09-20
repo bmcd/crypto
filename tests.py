@@ -3,6 +3,7 @@ import unittest
 import conv
 import xortools
 import aestools
+import encoding
 
 
 class Challenges(unittest.TestCase):
@@ -129,6 +130,9 @@ class Challenges(unittest.TestCase):
 
     def test_challenge_13(self):
         """ Challenge 13: ECB cut and paste """
+
+        encrypted_profile = aestools.create_admin_profile(encoding.profile_for)
+        self.assertTrue(encoding.is_admin(encrypted_profile))
 
 if __name__ == '__main__':
     unittest.main()
