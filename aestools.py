@@ -111,8 +111,13 @@ TEXT = """Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
 aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
 dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK"""
-def black_box(input):
+PREFIX_MAX = 64
+def get_black_box(prefix=False):
+    return lambda input : black_box(input, prefix)
+
+def black_box(input, prefix=False):
     combined = bytearray()
+    if(prefix): combined.extend(bytes(random_key(random.randint(0, PREFIX_MAX))))
     combined.extend(input)
     combined.extend(conv.base_64_to_bytes(TEXT))
     # input_fixed = add_bytes_to_input(input)

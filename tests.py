@@ -125,7 +125,7 @@ class Challenges(unittest.TestCase):
     def test_challenge_12(self):
         """ Challenge 12: Decrypt ECB 1 byte at a time """
 
-        result = aestools.break_ECB_1_byte(aestools.black_box)
+        result = aestools.break_ECB_1_byte(aestools.get_black_box())
         self.assertEqual(result, conv.base_64_to_bytes(aestools.TEXT))
 
     def test_challenge_13(self):
@@ -133,6 +133,12 @@ class Challenges(unittest.TestCase):
 
         encrypted_profile = aestools.create_admin_profile(encoding.profile_for)
         self.assertTrue(encoding.is_admin(encrypted_profile))
+
+    def test_challenge_14(self):
+        """ Challenge 14: Decrypt ECB 1 byte at a time HARD """
+
+        result = aestools.break_ECB_1_byte(aestools.get_black_box(True))
+        self.assertEqual(result, conv.base_64_to_bytes(aestools.TEXT))
 
 if __name__ == '__main__':
     unittest.main()
