@@ -140,5 +140,18 @@ class Challenges(unittest.TestCase):
         result = aestools.break_ECB_1_byte(aestools.get_black_box(True))
         self.assertEqual(result, conv.base_64_to_bytes(aestools.TEXT))
 
+    def test_challenge_15(self):
+        """ Challenge 15: Detect invalid PKCS-7 padding """
+
+        self.assertEqual(aestools.strip_valid_padding("ICE ICE BABY\x04\x04\x04\x04"), "ICE ICE BABY")
+        self.assertRaises(aestools.InvalidPaddingException, aestools.strip_valid_padding, "ICE ICE BABY\x05\x05\x05\x05")
+        self.assertRaises(aestools.InvalidPaddingException, aestools.strip_valid_padding, "ICE ICE BABY\x01\x02\x03\x04")
+
+    def test_challenge_16(self):
+        """ Challenge 16: Bitflipping CBC """
+
+        modified_encrypted_string = aestools.bit_flip_cbc(aestools.cbc_black_box)
+        self.assertTrue(aestools.has_admin_string(modified_encrypted_string))
+
 if __name__ == '__main__':
     unittest.main()
