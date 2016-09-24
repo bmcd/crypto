@@ -77,7 +77,7 @@ class Challenges(unittest.TestCase):
         input = conv.base_64_to_bytes(in_file.read())
         in_file.close()
 
-        output_bytes = aestools.decrypt_ecb(input, "YELLOW SUBMARINE")
+        output_bytes = aestools.decrypt_ecb(input, "YELLOW SUBMARINE", True)
         output = output_bytes.decode("utf-8")
 
         expected_file = open('files/7_expected.txt', 'r')
@@ -143,9 +143,9 @@ class Challenges(unittest.TestCase):
     def test_challenge_15(self):
         """ Challenge 15: Detect invalid PKCS-7 padding """
 
-        self.assertEqual(aestools.strip_valid_padding("ICE ICE BABY\x04\x04\x04\x04"), "ICE ICE BABY")
-        self.assertRaises(aestools.InvalidPaddingException, aestools.strip_valid_padding, "ICE ICE BABY\x05\x05\x05\x05")
-        self.assertRaises(aestools.InvalidPaddingException, aestools.strip_valid_padding, "ICE ICE BABY\x01\x02\x03\x04")
+        self.assertEqual(aestools.strip_valid_padding(b'ICE ICE BABY\x04\x04\x04\x04'), b'ICE ICE BABY')
+        self.assertRaises(aestools.InvalidPaddingException, aestools.strip_valid_padding, b'ICE ICE BABY\x05\x05\x05\x05')
+        self.assertRaises(aestools.InvalidPaddingException, aestools.strip_valid_padding, b'ICE ICE BABY\x01\x02\x03\x04')
 
     def test_challenge_16(self):
         """ Challenge 16: Bitflipping CBC """

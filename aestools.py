@@ -7,13 +7,19 @@ import xortools
 class InvalidPaddingException(Exception):
     pass
 
-def decrypt_ecb(input, key):
+def decrypt_ecb(input, key, padded=False):
     aes = AES.new(key, AES.MODE_ECB)
-    return bytes(strippadding(bytearray(aes.decrypt(input))))
+    decrypted = aes.decrypt(input)
+    if(padded):
+        return strip_valid_padding(decrypted)
+    else:
+        return decrypted
 
-def encrypt_ecb(input, key):
+def encrypt_ecb(input, key, pad=False):
     aes = AES.new(key, AES.MODE_ECB)
-    return aes.encrypt(padded(input))
+    if(pad):
+        input = padded(input)
+    return aes.encrypt(input)
 
 def find_aes(file):
     for line in file:
@@ -37,29 +43,23 @@ def detect_repeat(raw):
 def chunks(l, n):
     return [l[i:i+n] for i in range(0, len(l), n)]
 
-def padded(block, size=16):
-    remainder_bytes = len(block) % size
-    if(remainder_bytes == 0):
-        return block
-
-    paddedblock = bytearray(block)
-    for i in range(size - remainder_bytes):
-        paddedblock.append(4)
+def padded(input, blocksize=16):
+    padding_needed = blocksize - len(input) % blocksize
+    paddedblock = bytearray(input)
+    # the byte used for padding is equal to the amount of padding (PKCS-7)
+    for i in range(padding_needed):
+        paddedblock.append(padding_needed)
 
     return bytes(paddedblock)
 
 def strip_valid_padding(b):
-    b = bytearray(bytes(b, 'ascii'))
-    while b[-1] not in range(32, 127):
+    b = bytearray(b)
+    padding_byte = b[-1]
+    for i in range(padding_byte):
         popped_byte = b.pop()
-        if(popped_byte != 4):
+        if(popped_byte != padding_byte):
             raise InvalidPaddingException("Invalid padding")
-    return b.decode('ascii')
-
-def strippadding(b):
-    while b[-1] == 4:
-        b.pop()
-    return b
+    return bytes(b)
 
 def random_key(length):
     output = bytearray()
@@ -74,10 +74,9 @@ def encrypt_cbc(input, key, iv):
     blocksize = 16
     last = iv
     output = bytearray()
+    input = padded(input, blocksize)
     blocks = chunks(input, blocksize)
     for block in blocks:
-        if len(block) < blocksize:
-            block = padded(block, blocksize)
         combined = xortools.xor_bytes(last, block)
         encrypted = encrypt_ecb(combined, key)
         output.extend(encrypted)
@@ -94,14 +93,14 @@ def decrypt_cbc(input, key, iv):
         combined = xortools.xor_bytes(last, decrypted)
         output.extend(combined)
         last = block
-    return bytes(strippadding(output))
+    return strip_valid_padding(output)
 
 def encryption_oracle(input):
     key = random_key(16)
     input_fixed = add_bytes_to_input(input)
     
     if(random.random() >= 0.5):
-        return encrypt_ecb(input_fixed, key), "ECB"
+        return encrypt_ecb(input_fixed, key, True), "ECB"
     else:
         return encrypt_cbc(input_fixed, key, random_key(16)), "CBC"
 
@@ -133,7 +132,7 @@ def black_box(input, prefix=False):
     combined.extend(input)
     combined.extend(conv.base_64_to_bytes(TEXT))
     # input_fixed = add_bytes_to_input(input)
-    return encrypt_ecb(bytes(combined), BLACK_BOX_KEY)
+    return encrypt_ecb(bytes(combined), BLACK_BOX_KEY, True)
 
 def get_block_size_and_length(blackbox):
     test = bytearray()
@@ -151,67 +150,75 @@ def get_block_size_and_length(blackbox):
         padding += 1
     return (blocksize, last_length, padding)
 
-def get_prefix_length(blackbox, blocksize, length):
+def get_prefix_length(blackbox, blocksize, length, padding):
     # TODO it said crazy math wasn't required, did i solve this the best way?
 
-    padding = blocksize - (length % blocksize)
     # enough that there should be repeating blocks, but no padding at the end
+    # this will actually make a full block of padding at the end now
     input_length = (blocksize * 3) + padding
     input = bytes(input_length)
     prefix_tester = blackbox(input)
-    # this is prefix + input_length + target
-    total_length = len(prefix_tester)
+
+    # if there's no prefix, the first two blocks should be identical in ECB mode
     has_prefix = prefix_tester[0 : blocksize] != prefix_tester[blocksize : 2*blocksize]
     if(not has_prefix):
         return 0
     last_num_repeating = 0
-    prefix_block_size = -1
+    prefix_size_padded = -1
 
     for delta in range(0, input_length):
         input = bytes(input_length - delta)
         prefix_tester = blackbox(input)
         num_repeating = 1
         last_block = bytes()
+        # see how many blocks repeat with this test input
         for i in range(0, len(prefix_tester), blocksize):
             current_block = prefix_tester[i : i + blocksize]
             if(current_block == last_block):
                 num_repeating += 1
-                if(prefix_block_size == -1):
-                    prefix_block_size = i - blocksize
+                if(prefix_size_padded == -1):
+                    prefix_size_padded = i - blocksize
             elif(num_repeating > 1):
+                # when we stop seeing repeating blocks
                 break
             last_block = current_block
 
+        # if we found less repeating blocks this time, we found the length of the right side
         if(num_repeating < last_num_repeating):
             # we have the length of the target
             right_side = delta - 1
             left_side = padding - right_side
-            return prefix_block_size - left_side
+
+            # TODO don't really understand this, but it can be less than zero
+            if(left_side < 0): left_side += blocksize
+
+            return prefix_size_padded - left_side
         else:
             last_num_repeating = num_repeating
     return 0
 
 
-def break_ECB(blocksize, length, blackbox, prefix_length):
+def break_ECB(blocksize, length, padding, blackbox, prefix_length):
     length -= prefix_length
     one_short = bytearray(bytes(length - 1))
 
-    for i in range(0, length):
+    for i in range(0, length - padding):
         dictionary = {}
+        test_block_start = prefix_length + len(one_short) + 1 - blocksize
         for b in range(256):
             one_short.append(b)
             output = blackbox(bytes(one_short))
-            test_block = output[prefix_length+(length-blocksize) : prefix_length+length]
+            test_block = output[test_block_start : test_block_start+blocksize]
             dictionary[test_block] = b
             one_short.pop()
 
-        output = blackbox(bytes(one_short[0:length-i]))
-        test_block = output[prefix_length+(length-blocksize) : prefix_length+length]
+        output = blackbox(bytes(one_short[0:length-i-1]))
+        test_block = output[test_block_start : test_block_start+blocksize]
         found_byte = dictionary[test_block]
         one_short.pop(0)
         one_short.append(found_byte)
 
-    return strippadding(one_short)
+    return bytes(one_short[padding-1 : len(one_short)])
 
 def break_ECB_rest(blocksize, length, blackbox):
     prefix = 'email='
@@ -222,12 +229,11 @@ def break_ECB_rest(blocksize, length, blackbox):
     # create enough bytes to get to the next block
     prefix_padding = bytearray()
     for i in range(prefix_len, blocksize):
-        prefix_padding.append(4)
+        prefix_padding.append(65)
 
     # create an entire block with just admin and padding
-    role_block = bytearray(b'admin')
-    while(len(role_block) < blocksize):
-        role_block.append(4)
+    role_block = padded(b'admin')
+
 
     # encrypt and cut that admin block out for later use
     cut_encrypted = blackbox(prefix_padding + role_block)
@@ -249,7 +255,7 @@ def break_ECB_rest(blocksize, length, blackbox):
 
     # get the actual encrypted cookie
     real_encrypted = blackbox(email)
-    # pull off the last block which should be 'user0x040x04...' and replace with our admin block
+    # pull off the last block which should be 'user0x0C0x0C...' and replace with our admin block
     pasted_encrypted = real_encrypted[0 : len(real_encrypted)-blocksize] + cut_block
 
     return pasted_encrypted
@@ -259,8 +265,8 @@ def break_ECB_1_byte(function):
     mode = detect_mode(function(bytes(128)))
     if(mode != "ECB"):
         raise Exception("Black box not using ECB encryption")
-    prefix_length = get_prefix_length(function, blocksize, length)
-    return break_ECB(blocksize, length, function, prefix_length)
+    prefix_length = get_prefix_length(function, blocksize, length, padding)
+    return break_ECB(blocksize, length, padding, function, prefix_length)
 
 def create_admin_profile(function):
     stringified_function = lambda the_bytes: function(str(the_bytes, 'UTF-8'))
@@ -301,8 +307,8 @@ def bit_flip_cbc(function):
 
     # need to figure out indexes of the bytes to modify in the block before
     end_of_block_before = len(encrypted) - padding - suffix_length - blocksize
-    semi_pos = end_of_block_before - (len(target) - target.find(semi_replacement) - 1)
-    equals_pos = end_of_block_before - (len(target) - target.find(equals_replacement) - 1)
+    semi_pos = end_of_block_before - (len(target) - target.find(semi_replacement))
+    equals_pos = end_of_block_before - (len(target) - target.find(equals_replacement))
     semi_pos_byte = encrypted[semi_pos]
     equals_pos_byte = encrypted[equals_pos]
 
@@ -311,3 +317,15 @@ def bit_flip_cbc(function):
     encrypted[equals_pos] = equals_pos_byte ^ 1
 
     return encrypted
+
+def provide_cbc_ecrypted(input):
+    return (encrypt_cbc(bytes(input, 'utf-8'), BLACK_BOX_KEY, CBC_IV), CBC_IV)
+
+def is_valid_padding(encrypted):
+    decrypted = decrypt_cbc(encrypted, BLACK_BOX_KEY, CBC_IV)
+    try:
+        stripped_padding = strip_valid_padding(decrypted)
+        return True
+    except InvalidPaddingException:
+        return False
+

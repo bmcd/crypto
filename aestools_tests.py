@@ -31,16 +31,11 @@ class AesToolsTestCase(unittest.TestCase):
         self.assertTrue(minlength <= len(output) <= maxlength)
 
     def test_get_prefix(self):
-        aestools.PREFIX = aestools.random_key(6)
         function = aestools.get_black_box(True)
-        blocksize, length = aestools.get_block_size_and_length(function)
-        self.assertEqual(aestools.get_prefix_length(function, blocksize, length), 6)
-        aestools.PREFIX = aestools.random_key(3)
-        blocksize, length = aestools.get_block_size_and_length(function)
-        self.assertEqual(aestools.get_prefix_length(function, blocksize, length), 3)
-        aestools.PREFIX = aestools.random_key(23)
-        blocksize, length = aestools.get_block_size_and_length(function)
-        self.assertEqual(aestools.get_prefix_length(function, blocksize, length), 23)
+        for prefix_length in range(0, 128):
+            aestools.PREFIX = aestools.random_key(prefix_length)
+            blocksize, length, padding = aestools.get_block_size_and_length(function)
+            self.assertEqual(aestools.get_prefix_length(function, blocksize, length, padding), prefix_length)
 
     def test_quote_symbols(self):
         encrypted = aestools.cbc_black_box("test;admin=true;")

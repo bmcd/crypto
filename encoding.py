@@ -33,10 +33,10 @@ def profile(email, role):
 
 def profile_for(email, role='user'):
     encoded_profile = profile(email, role)
-    return aestools.encrypt_ecb(bytes(encoded_profile, 'UTF-8'), KEY)
+    return aestools.encrypt_ecb(bytes(encoded_profile, 'UTF-8'), KEY, True)
 
 def parse_encrypted(bytes):
-    return aestools.decrypt_ecb(bytes, KEY)
+    return aestools.decrypt_ecb(bytes, KEY, True)
 
 def create_or_get_user(email, role='user'):
     if email not in USERS:
