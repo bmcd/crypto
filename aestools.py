@@ -357,7 +357,7 @@ def break_cbc_using_padding(oracle, cipher, iv):
 
         cracked.extend(xortools.xor_bytes(bytes(intermediate), actual_iv))
         actual_iv = cipher[target_start : target_start + 16]
-    return cracked
+    return strip_valid_padding(bytes(cracked))
 
 # this was for if the padding oracle didn't take the IV, doesn't break the first block
 #def break_cbc_using_padding(oracle, cipher, iv):
@@ -388,10 +388,14 @@ def break_cbc_using_padding(oracle, cipher, iv):
 #        target_start += 16
 #    return cracked
                 
-            
-
-
-
-
-
-
+def do_ctr(input, key, nonce):
+    aes = AES.new(key)
+    input_chunks = chunks(input, 16)
+    encrypted = b''
+    count = bytearray(bytes(8))
+    for input_chunk in input_chunks:
+        keystream = nonce + bytes(count)
+        encrypted_keystream = aes.encrypt(keystream)
+        encrypted += xortools.xor_bytes(encrypted_keystream[0 : len(input_chunk)], input_chunk)
+        count[0] += 1
+    return encrypted
