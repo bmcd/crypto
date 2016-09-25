@@ -83,7 +83,7 @@ def encrypt_cbc(input, key, iv):
         last = encrypted
     return output
 
-def decrypt_cbc(input, key, iv):
+def decrypt_cbc(input, key, iv, strip=True):
     blocksize = 16
     last = iv
     output = bytearray()
@@ -93,7 +93,8 @@ def decrypt_cbc(input, key, iv):
         combined = xortools.xor_bytes(last, decrypted)
         output.extend(combined)
         last = block
-    return strip_valid_padding(output)
+
+    return strip_valid_padding(output) if strip else output
 
 def encryption_oracle(input):
     key = random_key(16)
@@ -318,14 +319,17 @@ def bit_flip_cbc(function):
 
     return encrypted
 
-def provide_cbc_ecrypted(input):
-    return (encrypt_cbc(bytes(input, 'utf-8'), BLACK_BOX_KEY, CBC_IV), CBC_IV)
+def provide_cbc_ecrypted():
+    input_file = open('files/17.txt', 'r')
+    lines = [line.rstrip() for line in input_file]
+    input_file.close()
+    line = lines[random.randint(0, len(lines) - 1)]
+    return (encrypt_cbc(conv.base_64_to_bytes(line), BLACK_BOX_KEY, CBC_IV), CBC_IV)
 
 def is_valid_padding(encrypted):
-    decrypted = decrypt_cbc(encrypted, BLACK_BOX_KEY, CBC_IV)
+    decrypted = decrypt_cbc(encrypted, BLACK_BOX_KEY, CBC_IV, False)
     try:
         stripped_padding = strip_valid_padding(decrypted)
         return True
     except InvalidPaddingException:
         return False
-
