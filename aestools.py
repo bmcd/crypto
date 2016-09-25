@@ -1,4 +1,5 @@
 from Crypto.Cipher import AES
+import os
 import random
 
 import conv
@@ -55,6 +56,9 @@ def padded(input, blocksize=16):
 def strip_valid_padding(b):
     b = bytearray(b)
     padding_byte = b[-1]
+    if(padding_byte not in range(1, 17)):
+        raise InvalidPaddingException("Invalid padding")
+
     for i in range(padding_byte):
         popped_byte = b.pop()
         if(popped_byte != padding_byte):
@@ -62,13 +66,7 @@ def strip_valid_padding(b):
     return bytes(b)
 
 def random_key(length):
-    output = bytearray()
-
-    for i in range(0, length):
-        # TODO obviously this isn't secure, i'm sure that comes up later
-        output.append(random.randint(0, 255))
-
-    return bytes(output)
+    return bytes(os.urandom(length))
 
 def encrypt_cbc(input, key, iv):
     blocksize = 16
@@ -132,7 +130,6 @@ def black_box(input, prefix=False):
     if(prefix): combined.extend(PREFIX)
     combined.extend(input)
     combined.extend(conv.base_64_to_bytes(TEXT))
-    # input_fixed = add_bytes_to_input(input)
     return encrypt_ecb(bytes(combined), BLACK_BOX_KEY, True)
 
 def get_block_size_and_length(blackbox):
@@ -326,10 +323,75 @@ def provide_cbc_ecrypted():
     line = lines[random.randint(0, len(lines) - 1)]
     return (encrypt_cbc(conv.base_64_to_bytes(line), BLACK_BOX_KEY, CBC_IV), CBC_IV)
 
-def is_valid_padding(encrypted):
-    decrypted = decrypt_cbc(encrypted, BLACK_BOX_KEY, CBC_IV, False)
+def is_valid_padding(encrypted, iv):
+    decrypted = decrypt_cbc(encrypted, BLACK_BOX_KEY, iv, False)
     try:
         stripped_padding = strip_valid_padding(decrypted)
         return True
     except InvalidPaddingException:
         return False
+
+def break_cbc_using_padding(oracle, cipher, iv):
+    cracked = bytearray()
+    actual_iv = iv
+    for target_start in range(0, len(cipher), 16):
+        # this is the intermediate block that comes out of the decryptor
+        intermediate = bytearray()
+        first_block = bytearray(random_key(16))
+        for target_padding_byte in range(1, 17):
+
+            # adjust all solved bytes to match new target padding
+            for solved in range(0, len(intermediate)):
+                reverse_index = -(solved+1)
+                first_block[reverse_index] = intermediate[reverse_index] ^ target_padding_byte
+
+            for b in range(0, 256):
+                first_block[-target_padding_byte] = b
+                valid = oracle(cipher[target_start : target_start+16], first_block)
+                if(valid):
+                    # valid padding, b ^ found_padding = real_byte 
+                    intermediate.insert(0, target_padding_byte ^ b)
+                    break
+                elif(b == 255):
+                    raise Exception("couldn't find valid padding byte")
+
+        cracked.extend(xortools.xor_bytes(bytes(intermediate), actual_iv))
+        actual_iv = cipher[target_start : target_start + 16]
+    return cracked
+
+# this was for if the padding oracle didn't take the IV, doesn't break the first block
+#def break_cbc_using_padding(oracle, cipher, iv):
+#    cracked = bytearray(bytes(16))
+#    target_start = 16
+#    while(target_start < len(cipher)):
+#        # this is the intermediate block that comes out of the decryptor
+#        intermediate = bytearray()
+#        first_block = bytearray(random_key(16))
+#        for target_padding_byte in range(1, 17):
+#
+#            # adjust all solved bytes to match new target padding
+#            for solved in range(0, len(intermediate)):
+#                reverse_index = -(solved+1)
+#                first_block[reverse_index] = intermediate[reverse_index] ^ target_padding_byte
+#
+#            for b in range(0, 256):
+#                first_block[-target_padding_byte] = b
+#                valid = oracle(cipher[0 : target_start - 16] + bytes(first_block + cipher[target_start : target_start+16]))
+#                if(valid):
+#                    # valid padding, b ^ found_padding = real_byte 
+#                    intermediate.insert(0, target_padding_byte ^ b)
+#                    break
+#                elif(b == 255):
+#                    raise Exception("couldn't find valid padding byte")
+#
+#        cracked.extend(xortools.xor_bytes(bytes(intermediate), cipher[target_start-16 : target_start]))
+#        target_start += 16
+#    return cracked
+                
+            
+
+
+
+
+
+
