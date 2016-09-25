@@ -61,6 +61,22 @@ class Challenges(unittest.TestCase):
 
         # no need to automate everything, from here i would manually adjust bytes
 
+    def test_challenge_20(self):
+        """ Challenge 20: Break fixed-nonce CTR Statistically """
+
+        key = aestools.random_key(16)
+        nonce = bytes(8)
+        input_file = open('files/20.txt', 'r')
+        lines = [conv.base_64_to_bytes(line.rstrip()) for line in input_file]
+        input_file.close()
+        encrypted_lines = [aestools.do_ctr(line, key, nonce) for line in lines]
+        min_length = min([len(line) for line in encrypted_lines])
+        concatted = b''.join([line[0:min_length] for line in encrypted_lines])
+        test = xortools.breakxor(concatted, min_length)
+        #print(test)
+
+        # this is even closer than the last one, still would require tweaking a couple bytes
+
 
 
 

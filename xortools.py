@@ -57,8 +57,12 @@ def distance(bytesone, bytestwo):
 def _countsetbits(b):
     return bin(b).count("1")
 
-def breakxor(raw):
-    distances = get_probable_key_sizes(raw)
+def breakxor(raw, keysize=-1):
+    if(keysize == -1):
+        distances = get_probable_key_sizes(raw)
+    else:
+        diff = get_normalized_distance(raw, keysize, 4)
+        distances = [Distance(keysize, diff)]
     best_decrypted = None
     best_score = None
     for dist in distances:
