@@ -27,6 +27,7 @@ dict['y'] = 0.01974
 dict['z'] = 0.00074
 
 def scoreof(decoded_bytes):
+    if len(decoded_bytes) == 0: return 0
     count = 0
     counts = {}
     for char_byte in decoded_bytes:
