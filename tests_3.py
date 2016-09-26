@@ -6,6 +6,9 @@ import aestools
 import encoding
 import random
 import frequency
+import mt
+import random
+import time
 
 
 class Challenges(unittest.TestCase):
@@ -77,6 +80,19 @@ class Challenges(unittest.TestCase):
 
         # this is even closer than the last one, still would require tweaking a couple bytes
 
+    def test_challenge_22(self):
+        """ Challenge 22: MT seed finding, uncomment to run """
+
+        #start_time = int(round(time.time() * 1000))
+        #first_rand = mt.wait_seed_wait_rand()
+        #end_time = int(round(time.time() * 1000))
+        #for seed in range(start_time, end_time):
+        #    generator = mt.MT19937(seed)
+        #    if(generator.extract_number() == first_rand):
+        #        print("Found seed: ")
+        #        print(seed)
+        #        break
+        
 
 
 
