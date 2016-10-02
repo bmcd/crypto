@@ -92,6 +92,31 @@ class Challenges(unittest.TestCase):
         #        print("Found seed: ")
         #        print(seed)
         #        break
+
+    def test_challenge_23(self):
+        """ Challenge 23: Clone MT """
+
+        seed = int(round(time.time() * 1000))
+        original = mt.MT19937(seed)
+        cloned = mt.clone_mt(original)
+
+        # they should be different objects
+        self.assertNotEqual(original, cloned)
+
+        #run the clone until it catches up to the original, if needed
+        next_number = original.extract_number()
+        cloned_number = cloned.extract_number()
+        timeout = 0
+        while(next_number != cloned_number):
+            cloned_number = cloned.extract_number()
+            timeout += 1
+            if(timeout > 1000):
+                raise Exception('cloned twister couldnt catch up to original')
+
+        # check next few numbers of each to make sure they're equal
+        for i in range(5):
+            self.assertEqual(original.extract_number(), cloned.extract_number())
+
         
 
 

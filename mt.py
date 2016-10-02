@@ -56,3 +56,58 @@ def wait_seed_wait_rand():
     random_seconds = random.randint(40, 1000)
     time.sleep(random_seconds)
     return rand.extract_number()
+
+def untemper(value):
+    value = reverse_right(value, 18)
+    value = reverse_left(value, 15, 4022730752)
+    value = reverse_left(value, 7, 2636928640)
+    value = reverse_right(value, 11)
+    return value
+
+def reverse_right(value, shift):
+    # we have the left shift bits already
+    known = shift
+    # if shift is less than 16, we need to run this multiple times
+    while(known < 32):
+        # intermediate is the input shifted by the bits
+        intermediate = value >> shift
+        # shift off already known bits on the left
+        intermediate = _int32(intermediate << known) >> known
+        # shift off unknown bits on the right past the known shifted
+        if(32 > known + shift):
+            unknown = 32 - (known + shift)
+            intermediate = intermediate >> unknown << unknown
+        value = value ^ intermediate
+        known += shift
+
+    return value
+
+def reverse_left(value, shift, magic_number):
+    known = 0
+    while(known < 32):
+        # we know that the bits on the right of the shifted value are 0
+        shifted = _int32(value << shift)
+        intermediate = shifted & magic_number
+        # shift off already known bits on the right
+        intermediate = intermediate >> known << known
+        # shift off unknown bits on the left past the known shifted
+        if(32 > known + shift):
+            unknown = 32 - (known + shift)
+            intermediate = _int32(intermediate << unknown) >> unknown
+        value = value ^ intermediate
+        known += shift
+
+    return value
+
+def print_bits(number):
+    return format(number, '032b')
+
+def clone_mt(original):
+    # change internals later
+    cloned = MT19937(1)
+    array = [0] * 624
+    for i in range(624):
+        array[i] = untemper(original.extract_number())
+
+    cloned.mt = array
+    return cloned
